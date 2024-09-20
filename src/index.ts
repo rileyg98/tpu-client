@@ -356,9 +356,10 @@ export class TpuClient {
      * @returns {Promise<string>}
      */
     async sendRawTransaction(rawTransaction: Buffer | number[] | Uint8Array) : Promise<TransactionSignature> {
-
-        const message = Transaction.from(rawTransaction);
-        const signature = base58.encode(Uint8Array.from(message.signature));
+        const rawTxBuf = Buffer.from(rawTransaction);
+        const message = VersionedTransaction.deserialize(rawTxBuf);
+        
+        const signature = base58.encode(message.signatures[0]);
         const tpu_addresses = await this.leaderTpuService.leaderTpuSockets(this.fanoutSlots);
         const logger = new Logger(signature, 4);
         const webcrypto = new peculiarWebcrypto.Crypto();
