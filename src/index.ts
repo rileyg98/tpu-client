@@ -1,13 +1,13 @@
 import { Commitment, ConfirmOptions, Connection, ConnectionConfig, PublicKey, SendOptions, SignatureResult, Signer, Transaction, TransactionExpiredBlockheightExceededError, TransactionSignature, VersionedTransaction } from "@solana/web3.js";
 import { default as Denque } from 'denque';
-import {QUICClient} from "@matrixai/quic";
+import { QUICClient } from "@matrixai/quic";
 import { default as Logger } from '@matrixai/logger';
 import * as peculiarWebcrypto from '@peculiar/webcrypto';
 import base58 from "bs58";
 import selfsigned from 'selfsigned';
 
 // create self signed pems for quic
-const pems = selfsigned.generate([{name: 'commonName', value: 'Solana node'}, { name: "subjectAltName", value: [{ type: 7, value: "0.0.0.0" }]}], { days: 365, algorithm: 'ed25519', keySize: 2048 });
+const pems = selfsigned.generate([{ name: 'commonName', value: 'Solana node' }, { name: "subjectAltName", value: [{ type: 7, value: "0.0.0.0" }] }], { days: 365, algorithm: 'ed25519', keySize: 2048 });
 
 export class LeaderTpuCache {
     leaderTpuMap: Map<string, string>;
@@ -20,7 +20,7 @@ export class LeaderTpuCache {
         this.connection = connection;
         this.first_slot = startSlot;
     }
-    static load(connection : Connection, startSlot: number) : Promise<LeaderTpuCache> {
+    static load(connection: Connection, startSlot: number): Promise<LeaderTpuCache> {
         return new Promise((resolve) => {
             const leaderTpuCache = new LeaderTpuCache(connection, startSlot);
             leaderTpuCache.connection.getEpochInfo().then(epochInfo => {
@@ -34,9 +34,9 @@ export class LeaderTpuCache {
                 });
             });
         });
-        
+
     }
-    fetchClusterTpuSockets() : Promise<Map<string, string>> {
+    fetchClusterTpuSockets(): Promise<Map<string, string>> {
         return new Promise((resolve, reject) => {
             const map = new Map<string, string>();
             this.connection.getClusterNodes().then(contactInfo => {
@@ -48,16 +48,16 @@ export class LeaderTpuCache {
             }).catch(error => {
                 reject(error);
             });
-        });   
+        });
     }
-    fetchSlotLeaders(start_slot: number, slots_in_epoch: number) : Promise<Array<PublicKey>> {
+    fetchSlotLeaders(start_slot: number, slots_in_epoch: number): Promise<Array<PublicKey>> {
         const fanout = Math.min((2 * MAX_FANOUT_SLOTS), slots_in_epoch);
         return this.connection.getSlotLeaders(start_slot, fanout);
     }
-    lastSlot() : number {
+    lastSlot(): number {
         return this.first_slot + this.leaders.length - 1;
     }
-    getSlotLeader(slot: number) : PublicKey | null {
+    getSlotLeader(slot: number): PublicKey | null {
         if (slot >= this.first_slot) {
             const index = slot - this.first_slot;
             return this.leaders[index];
@@ -65,7 +65,7 @@ export class LeaderTpuCache {
             return null;
         }
     }
-    getLeaderSockets(fanout_slots: number) : Promise<Array<string>> {
+    getLeaderSockets(fanout_slots: number): Promise<Array<string>> {
         return new Promise((resolve) => {
             const leaderSet = new Set<string>();
             const leaderSockets = new Array<string>();
@@ -86,7 +86,7 @@ export class LeaderTpuCache {
                 }
             });
         });
-        
+
     }
 }
 
@@ -115,7 +115,7 @@ export class RecentLeaderSlots {
      */
     recordSlot(current_slot: number) {
         this.recent_slots.push(current_slot);
-        while(this.recent_slots.length > 12) {
+        while (this.recent_slots.length > 12) {
             this.recent_slots.pop();
         }
     }
@@ -125,7 +125,7 @@ export class RecentLeaderSlots {
      * 
      * @returns {number}
      */
-    estimatedCurrentSlot() : number {
+    estimatedCurrentSlot(): number {
         if (this.recent_slots.isEmpty()) {
             throw new Error('recent slots is empty');
         }
@@ -158,10 +158,10 @@ export class TpuClient {
     private constructor(connection: Connection, config: TpuClientConfig = { fanoutSlots: DEFAULT_FANOUT_SLOTS }) {
         this.connection = connection;
         this.exit = false;
-        this.fanoutSlots = Math.max( Math.min(config.fanoutSlots, MAX_FANOUT_SLOTS), 1 );
+        this.fanoutSlots = Math.max(Math.min(config.fanoutSlots, MAX_FANOUT_SLOTS), 1);
         console.log('started tpu client');
     }
-    
+
     //@ts-check
     /**
      * @param connection {Connection}
@@ -169,7 +169,7 @@ export class TpuClient {
      * @param config {TpuClientConfig}
      * @returns {Promise<TpuClient>}
      */
-    static load(connection: Connection, websocketUrl = '', config: TpuClientConfig = { fanoutSlots: DEFAULT_FANOUT_SLOTS }) : Promise<TpuClient> {
+    static load(connection: Connection, websocketUrl = '', config: TpuClientConfig = { fanoutSlots: DEFAULT_FANOUT_SLOTS }): Promise<TpuClient> {
         return new Promise((resolve) => {
             const tpuClient = new TpuClient(connection, config);
             LeaderTpuService.load(tpuClient.connection, websocketUrl).then((leaderTpuService) => {
@@ -185,10 +185,10 @@ export class TpuClient {
      * @param signers {Array<Signer>}
      * @returns {Promise<string>}
      */
-    async sendTransaction(transaction: Transaction | VersionedTransaction, signersOrOptions: Array<Signer> | SendOptions, _options?: SendOptions) : Promise<TransactionSignature> {
+    async sendTransaction(transaction: Transaction | VersionedTransaction, signersOrOptions: Array<Signer> | SendOptions, _options?: SendOptions): Promise<TransactionSignature> {
         if ('version' in transaction) {
             if (signersOrOptions && Array.isArray(signersOrOptions)) {
-              throw new Error('Invalid arguments');
+                throw new Error('Invalid arguments');
             }
             const rawTransaction = transaction.serialize();
             return this.sendRawTransaction(rawTransaction);
@@ -215,10 +215,10 @@ export class TpuClient {
      * @param _options 
      * @returns 
      */
-    async sendAbortableTransaction(transaction: Transaction | VersionedTransaction, signersOrOptions: Array<Signer> | SendOptions, _options?: SendOptions) : Promise<{ signature: TransactionSignature, abortControllers: AbortController[], blockhash?: { blockhash: string, lastValidBlockHeight: number }}> {
+    async sendAbortableTransaction(transaction: Transaction | VersionedTransaction, signersOrOptions: Array<Signer> | SendOptions, _options?: SendOptions): Promise<{ signature: TransactionSignature, abortControllers: AbortController[], blockhash?: { blockhash: string, lastValidBlockHeight: number } }> {
         if ('version' in transaction) {
             if (signersOrOptions && Array.isArray(signersOrOptions)) {
-              throw new Error('Invalid arguments');
+                throw new Error('Invalid arguments');
             }
             const rawTransaction = transaction.serialize();
             return this.sendAbortableRawTransaction(rawTransaction);
@@ -241,7 +241,7 @@ export class TpuClient {
             const { signature, abortControllers } = await this.sendAbortableRawTransaction(rawTransaction);
             return { signature, abortControllers, blockhash: { ...latestBh } };
         }
-        
+
     }
 
 
@@ -261,24 +261,24 @@ export class TpuClient {
                 console.log('retrying ' + tpu_address);
             }
             const client = await QUICClient.createQUICClient({
-                    logger,
-                    config: {
-                        key: pems.private,
-                        cert: pems.cert,
-                        verifyPeer: false,
-                        applicationProtos: ['solana-tpu'],
-                    },
-                    serverName: "server",
-                    host: tpu_address.split(':')[0],
-                    port: parseInt(tpu_address.split(':')[1]),
-                    crypto: {
-                        ops: {
-                            randomBytes: async (data: ArrayBuffer): Promise<void> => {
-                                webcrypto.getRandomValues(new Uint8Array(data));
-                            },
+                logger,
+                config: {
+                    key: pems.private,
+                    cert: pems.cert,
+                    verifyPeer: false,
+                    applicationProtos: ['solana-tpu'],
+                },
+                serverName: "server",
+                host: tpu_address.split(':')[0],
+                port: parseInt(tpu_address.split(':')[1]),
+                crypto: {
+                    ops: {
+                        randomBytes: async (data: ArrayBuffer): Promise<void> => {
+                            webcrypto.getRandomValues(new Uint8Array(data));
                         },
-                    }
+                    },
                 }
+            }
             );
             // solana-quic doesnt support bidirectional streams
             const clientStream = client.connection.newStream('uni');
@@ -301,8 +301,30 @@ export class TpuClient {
             }
             // console.log('closed', index);
         } catch (error) {
-            if (!abortController.signal.aborted) {
+            if (abortController) {
 
+                if (!abortController.signal.aborted) {
+
+                    if (error.data.errorCode === 2) {
+                        console.error('connection refused', tpu_address);
+                    } else if (error.data.errorCode === 11) {
+                        console.error('invalid token', tpu_address);
+                    } else if (error.data.errorCode === 1) {
+                        console.error('internal error', tpu_address);
+                    } else {
+                        console.error('error', tpu_address);
+                        console.error(error);
+                        console.error(new TextDecoder().decode(error.data.reason));
+                    }
+
+                    if (retryCount < retryMaxCount) {
+                        return await this.sendSignedRawTransactionToQuicAddress(tpu_address, logger, webcrypto, rawTransaction, abortController, retryCount + 1, retryMaxCount);
+                    } else {
+                        console.warn('max retry count', tpu_address);
+                    }
+                }
+            } else {
+                // If no abort controller
                 if (error.data.errorCode === 2) {
                     console.error('connection refused', tpu_address);
                 } else if (error.data.errorCode === 11) {
@@ -316,12 +338,12 @@ export class TpuClient {
                 }
 
                 if (retryCount < retryMaxCount) {
-                    return await this.sendSignedRawTransactionToQuicAddress(tpu_address, logger, webcrypto, rawTransaction, abortController, retryCount+1, retryMaxCount);
+                    return await this.sendSignedRawTransactionToQuicAddress(tpu_address, logger, webcrypto, rawTransaction, null, retryCount + 1, retryMaxCount);
                 } else {
                     console.warn('max retry count', tpu_address);
                 }
             }
-            
+
         }
     }
 
@@ -331,7 +353,7 @@ export class TpuClient {
      * @param rawTransaction 
      * @returns 
      */
-    async sendAbortableRawTransaction(rawTransaction: Buffer | number[] | Uint8Array) : Promise<{ signature: TransactionSignature, abortControllers: AbortController[] }> {
+    async sendAbortableRawTransaction(rawTransaction: Buffer | number[] | Uint8Array): Promise<{ signature: TransactionSignature, abortControllers: AbortController[] }> {
         const message = Transaction.from(rawTransaction);
         const signature = base58.encode(Uint8Array.from(message.signature));
         const tpu_addresses = await this.leaderTpuService.leaderTpuSockets(this.fanoutSlots);
@@ -339,7 +361,7 @@ export class TpuClient {
         const webcrypto = new peculiarWebcrypto.Crypto();
         // console.log('sending abortable ' + `https://solscan.io/tx/${signature}` + ' via QUIC');
         // console.log(tpu_addresses.length, 'addresses');
-        
+
         const abortControllers = tpu_addresses.map((tpu_address) => {
             const abortController = new AbortController();
             this.sendSignedRawTransactionToQuicAddress(tpu_address, logger, webcrypto, rawTransaction, abortController);
@@ -355,10 +377,10 @@ export class TpuClient {
      * @param rawTransaction {Buffer | number[] | Uint8ARray}
      * @returns {Promise<string>}
      */
-    async sendRawTransaction(rawTransaction: Buffer | number[] | Uint8Array) : Promise<TransactionSignature> {
+    async sendRawTransaction(rawTransaction: Buffer | number[] | Uint8Array): Promise<TransactionSignature> {
         const rawTxBuf = Buffer.from(rawTransaction);
         const message = VersionedTransaction.deserialize(rawTxBuf);
-        
+
         const signature = base58.encode(message.signatures[0]);
         const tpu_addresses = await this.leaderTpuService.leaderTpuSockets(this.fanoutSlots);
         const logger = new Logger(signature, 4);
@@ -383,7 +405,7 @@ export class LeaderTpuService {
      * 
      * @param connection {Connection}
      */
-    private constructor(connection : Connection) {
+    private constructor(connection: Connection) {
         this.connection = connection;
     }
 
@@ -394,7 +416,7 @@ export class LeaderTpuService {
      * @param websocket_url {string}
      * @returns {Promise<LeaderTpuService>}
      */
-    static load(connection : Connection, websocket_url = '') : Promise<LeaderTpuService> {
+    static load(connection: Connection, websocket_url = ''): Promise<LeaderTpuService> {
         return new Promise((resolve) => {
             const leaderTpuService = new LeaderTpuService(connection);
             leaderTpuService.connection.getSlot('processed').then((start_slot) => {
@@ -416,7 +438,7 @@ export class LeaderTpuService {
                 });
             });
         });
-        
+
     }
 
     //@ts-check
@@ -425,7 +447,7 @@ export class LeaderTpuService {
      * @param fanout_slots {number}
      * @returns {Promise<string[]>}
      */
-    leaderTpuSockets(fanout_slots: number) : Promise<string[]> {
+    leaderTpuSockets(fanout_slots: number): Promise<string[]> {
         return this.leaderTpuCache.getLeaderSockets(fanout_slots);
     }
 
@@ -438,7 +460,7 @@ export class LeaderTpuService {
         let sleep_ms = 1000;
         setTimeout(async () => {
             sleep_ms = 1000;
-            if ( Date.now() - last_cluster_refresh > (1000 * 5 * 60)) {
+            if (Date.now() - last_cluster_refresh > (1000 * 5 * 60)) {
                 try {
                     this.leaderTpuCache.leaderTpuMap = await this.leaderTpuCache.fetchClusterTpuSockets();
                 } catch (error) {
@@ -447,7 +469,7 @@ export class LeaderTpuService {
                 }
             }
             const estimatedCurrentSlot = this.recentSlots.estimatedCurrentSlot();
-            if (estimatedCurrentSlot >= this.leaderTpuCache.last_epoch_info_slot-this.leaderTpuCache.slots_in_epoch) {
+            if (estimatedCurrentSlot >= this.leaderTpuCache.last_epoch_info_slot - this.leaderTpuCache.slots_in_epoch) {
                 try {
                     const epochInfo = await this.connection.getEpochInfo('recent');
                     this.leaderTpuCache.slots_in_epoch = epochInfo.slotsInEpoch;
@@ -480,7 +502,7 @@ export class TpuConnection extends Connection {
      * @param endpoint {string}
      * @param commitmentOrConfig {Commitment | ConnectionConfig}
      */
-    private constructor(endpoint : string, commitmentOrConfig?: Commitment | ConnectionConfig) {
+    private constructor(endpoint: string, commitmentOrConfig?: Commitment | ConnectionConfig) {
         super(endpoint, commitmentOrConfig);
     }
 
@@ -505,7 +527,7 @@ export class TpuConnection extends Connection {
     sendAbortableTransaction(transaction: Transaction | VersionedTransaction, signers: Array<Signer> | SendOptions, sendOptions?: SendOptions): Promise<{ signature: TransactionSignature, abortControllers: AbortController[] }> {
         return this.tpuClient.sendAbortableTransaction(transaction, signers, sendOptions);
     }
-    
+
     /**
      * 
      * @param rawTransaction {Buffer | Array<number> | Uint8Array}
@@ -520,7 +542,7 @@ export class TpuConnection extends Connection {
      * @param rawTransaction 
      * @returns 
      */
-    sendAbortableRawTransaction(rawTransaction: Buffer | Array<number> | Uint8Array) : Promise<{ signature: TransactionSignature, abortControllers: AbortController[] }> {
+    sendAbortableRawTransaction(rawTransaction: Buffer | Array<number> | Uint8Array): Promise<{ signature: TransactionSignature, abortControllers: AbortController[] }> {
         return this.tpuClient.sendAbortableRawTransaction(rawTransaction);
     }
 
@@ -533,7 +555,7 @@ export class TpuConnection extends Connection {
      * @param options {ConfirmOptions}
      * @returns {Promise<TransactionSignature>}
      */
-    async sendAndConfirmTransaction(transaction: Transaction, signers: Array<Signer>, options?: ConfirmOptions) : Promise<TransactionSignature> {
+    async sendAndConfirmTransaction(transaction: Transaction, signers: Array<Signer>, options?: ConfirmOptions): Promise<TransactionSignature> {
         const signature = await this.sendTransaction(transaction, signers);
         const status = (await this.confirmTransaction(signature, options.commitment)).value;
         if (status.err) {
@@ -552,7 +574,7 @@ export class TpuConnection extends Connection {
      * @param options {ConfirmOptions}
      * @returns {Promise<string>}
      */
-    async sendAndConfirmRawTransaction(rawTransaction: Buffer | Array<number> | Uint8Array, options?: ConfirmOptions) : Promise<TransactionSignature> {
+    async sendAndConfirmRawTransaction(rawTransaction: Buffer | Array<number> | Uint8Array, options?: ConfirmOptions): Promise<TransactionSignature> {
         const signature = await this.sendRawTransaction(rawTransaction);
         const status = (await this.confirmTransaction(signature, options.commitment)).value;
         if (status.err) {
@@ -570,7 +592,7 @@ export class TpuConnection extends Connection {
      * @param sendOptions 
      * @returns 
      */
-    async sendAndConfirmAbortableTransaction(transaction: Transaction | VersionedTransaction, signers: Array<Signer> | SendOptions, sendOptions?: SendOptions) : Promise<TransactionSignature>  {
+    async sendAndConfirmAbortableTransaction(transaction: Transaction | VersionedTransaction, signers: Array<Signer> | SendOptions, sendOptions?: SendOptions): Promise<TransactionSignature> {
         const { signature, abortControllers, blockhash } = await this.tpuClient.sendAbortableTransaction(transaction, signers, sendOptions);
         console.log(`sent tx: https://solana.fm/tx/${signature}`);
         try {
@@ -584,7 +606,7 @@ export class TpuConnection extends Connection {
                             return await this.sendAndConfirmAbortableTransaction(transaction, signers, sendOptions);
                         }
                     }
-                }  else {
+                } else {
                     status = (await this.confirmTransaction(signature, 'processed')).value;
                 }
                 if (status.err === null) {
@@ -608,9 +630,9 @@ export class TpuConnection extends Connection {
      * @param blockhash 
      * @returns 
      */
-    async sendAndConfirmAbortableRawTransaction(rawTransaction: Buffer | Array<number> | Uint8Array, blockhash?: { blockhash: string, lastValidBlockHeight: number }) : Promise<TransactionSignature>  {
+    async sendAndConfirmAbortableRawTransaction(rawTransaction: Buffer | Array<number> | Uint8Array, blockhash?: { blockhash: string, lastValidBlockHeight: number }): Promise<TransactionSignature> {
         const { signature, abortControllers } = await this.tpuClient.sendAbortableRawTransaction(rawTransaction);
-        let status : SignatureResult;
+        let status: SignatureResult;
         if (blockhash) {
             status = (await this.confirmTransaction({ signature, ...blockhash }, 'processed')).value;
         } else {
@@ -633,8 +655,8 @@ export class TpuConnection extends Connection {
      * @param commitmentOrConfig {Commitment | ConnectionConfig}
      * @returns {Promise<TpuConnection>}
      */
-    static load(endpoint: string, commitmentOrConfig?: Commitment | ConnectionConfig) : Promise<TpuConnection> {
-        
+    static load(endpoint: string, commitmentOrConfig?: Commitment | ConnectionConfig): Promise<TpuConnection> {
+
         return new Promise((resolve) => {
             const tpuConnection = new TpuConnection(endpoint, commitmentOrConfig);
             TpuClient.load(tpuConnection).then(tpuClient => {
